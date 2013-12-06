@@ -5,6 +5,9 @@
  */
 
 
+//TODO major refactor use self instead of this
+
+
 function do_line_segments_intersect(segment_a, segment_b){
 
     var x1 = segment_a.start.x
@@ -41,7 +44,7 @@ function time() {
 
 // paint_widget encapsulates drawing primitives for HTML5 canvas
 function paint_widget(init){
-    var self= this;
+
 
     var canvas_id = init.canvas_id
 
@@ -250,7 +253,7 @@ function smart_paint_widget(init){
  * ****************************************************************************/
 
 function capture_widget(init){
-
+    var self= this;
     var canvas_dom_id = init.canvas_id
 
     var canvas_id = '#' + canvas_dom_id
@@ -275,6 +278,9 @@ function capture_widget(init){
     var pan_last_point;
 
     var canvas;
+
+
+    self.canvas = new Object();
 
 
     var VisualTypes = {
@@ -324,12 +330,12 @@ function capture_widget(init){
 
         current_visual = empty_visual()
         current_visual.type = active_visual_type
-        last_point = canvas.relative_point(event)
+        last_point = self.canvas.relative_point(event)
 
         current_visual.vertices.push(last_point)
 
         if (active_visual_type == VisualTypes.dots) {
-            canvas.draw_point(last_point)
+            self.canvas.draw_point(last_point)
         }
 
     }
@@ -348,13 +354,13 @@ function capture_widget(init){
 
 
         if (lmb_down) {
-            cur_point = canvas.relative_point(event)
+            cur_point = self.canvas.relative_point(event)
 
             if (active_visual_type == VisualTypes.dots) {
-                canvas.draw_point(cur_point)
+                self.canvas.draw_point(cur_point)
             }
             else if (active_visual_type == VisualTypes.stroke) {
-                canvas.draw_line({
+                self.canvas.draw_line({
                         from: cur_point,
                         to: last_point
                     })
@@ -425,7 +431,7 @@ function capture_widget(init){
         }
 
         if(at_least_one_intersection){
-            canvas.clear()
+            self.canvas.clear()
             draw_visuals(VISUALS)
         }
 
@@ -461,16 +467,16 @@ function capture_widget(init){
         var dy = cur_point.y - pan_last_point.y;
 
         var mat = translation_matrix(dx,dy);
-        //var ctx = canvas.get_ctx();
+        //var ctx = self.canvas.get_ctx();
         //ctx.save()
-        //canvas.transform(mat)
-        canvas.clear();
-        canvas.transform(mat)
+        //self.canvas.transform(mat)
+        self.canvas.clear();
+        self.canvas.transform(mat)
         //ctx.translate(dx,dy);
         draw_visuals(VISUALS)
         //ctx.restore();
 
-        var transform = canvas.get_current_transform()
+        var transform = self.canvas.get_current_transform()
         transform.time = time()
         TRANSFORMS.push(transform)
 
@@ -479,7 +485,7 @@ function capture_widget(init){
 
 
 
-        //console.log('panning', canvas.relative_point(event))
+        //console.log('panning', self.canvas.relative_point(event))
     }
 
     function on_pan_end(event){
@@ -500,7 +506,7 @@ function capture_widget(init){
             if (visual.type == VisualTypes.dots){
                 for(var j=0; j<visual.vertices.length; j++){
                     var vertex = visual.vertices[j]
-                    canvas.draw_point(vertex)
+                    self.canvas.draw_point(vertex)
                 }
             }
             else if(visual.type == VisualTypes.stroke){
@@ -511,7 +517,7 @@ function capture_widget(init){
                         from: from,
                         to: to
                     }
-                    canvas.draw_line(line)
+                    self.canvas.draw_line(line)
                 }
             }
             else {
@@ -569,7 +575,7 @@ function capture_widget(init){
 
         if (PEN) {
             console.log('Pointer Enabled Device')
-            canvas = new smart_paint_widget(canvas_init)
+            self.canvas = new smart_paint_widget(canvas_init)
 
             c = document.getElementById(canvas_dom_id);
             c.addEventListener("MSPointerUp", on_mouseup, false);
@@ -581,7 +587,7 @@ function capture_widget(init){
         }
         else {
             console.log('Pointer Disabled Device')
-            canvas = new paint_widget(canvas_init)
+            self.canvas = new paint_widget(canvas_init)
             $(canvas_id).mousedown(on_mousedown)
             $(canvas_id).mousemove(on_mousemove)
             $(window).mouseup(on_mouseup)
@@ -599,7 +605,7 @@ function capture_widget(init){
 
          */
 
-       canvas.resize_canvas();
+       self.canvas.resize_canvas();
     }
 
     //Initialize the widget
@@ -610,35 +616,35 @@ function capture_widget(init){
      * *************************************************************************/
 
 
-    // Erases the entire canvas
-    this.clear = function(){
-        canvas.clear()
+    // Erases the entire self.canvas
+    self.clear = function(){
+        self.canvas.clear()
     }
 
     // Starts recording of strokes
-    this.start_collecting = function() {
+    self.start_collecting = function() {
 
     }
 
     // Stops recording of strokes and prints them
-    this.stop_collecting = function(){
+    self.stop_collecting = function(){
 
     }
 
     // Change the interpolation mode
-    this.set_active_visual_type = function(type_str){
+    self.set_active_visual_type = function(type_str){
         active_visual_type = VisualTypes[type_str]
     }
 
-    this.draw_all=function(){
+    self.draw_all=function(){
         draw_visuals(VISUALS)
     }
 
-    this.undo=function(){
+    self.undo=function(){
 
         if(VISUALS.length > 0){
             VISUALS.pop()
-            canvas.clear()
+            self.canvas.clear()
             draw_visuals(VISUALS)
         }
 
@@ -649,12 +655,12 @@ function capture_widget(init){
 //        return pentimento_record
 //    }
 
-    this.start_recording = function (){
+    self.start_recording = function (){
         is_recording = true;
         recording_start_time = time();
     }
 
-    this.stop_recording = function(){
+    self.stop_recording = function(){
         is_recording = false;
         recording_stop_time = time();
     }
