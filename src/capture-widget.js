@@ -40,9 +40,15 @@ function time() {
 }
 
 // paint_widget encapsulates drawing primitives for HTML5 canvas
-function paint_widget(canvas_id){
+function paint_widget(init){
+    var self= this;
 
-    var canvas_id = canvas_id
+    var canvas_id = init.canvas_id
+
+
+    var canvas_width = typeof(init.canvas_width)== 'undefined'? '100' : init.canvas_width
+    var canvas_height = typeof(init.canvas_height)== 'undefined'? '100' : init.canvas_height
+
     var default_line_color = '#333'
     var default_line_width = 2
     var default_point_color = '#222'
@@ -106,6 +112,7 @@ function paint_widget(canvas_id){
     }
 
      this.draw_line = function(line) {
+
          /*
             line = {
                 from: point,
@@ -161,8 +168,12 @@ function paint_widget(canvas_id){
         var iw = $(window).width();
         var ih = $(window).height();
 
-        $(canvas_id)[0].width = 0.6 * iw
-        $(canvas_id)[0].height = 0.6 * ih
+//
+//        $(canvas_id)[0].width = canvas_width
+//        $(canvas_id)[0].height = canvas_height
+
+        $(canvas_id).attr('width', canvas_width)
+        $(canvas_id).attr('height', canvas_height)
     }
 
     this.get_ctx = get_ctx;
@@ -182,9 +193,9 @@ function paint_widget(canvas_id){
 
 // smart_paint_widget wraps paint_widget to modify the drawing primitives
 // according to advanced input such as pressure
-function smart_paint_widget(canvas_id){
+function smart_paint_widget(init){
 
-    var canvas = new paint_widget(canvas_id)
+    var canvas = new paint_widget(init)
     var pressure_color = false  // Change color of strokes dep on pressure?
     var pressure_width = true  // Change width of strokes dep on pressure?
     var max_extra_line_width = 4
@@ -241,9 +252,10 @@ function smart_paint_widget(canvas_id){
 function capture_widget(init){
 
     var canvas_dom_id = init.canvas_id
+
     var canvas_id = '#' + canvas_dom_id
     //var canvas // drawing widget
-    canvas = ''
+
 
     var recording_start_time;
     var recording_stop_time;
@@ -261,6 +273,9 @@ function capture_widget(init){
     var last_point;
 
     var pan_last_point;
+
+    var canvas;
+
 
     var VisualTypes = {
         dots: 'dots',  // todo use ints to speed up?
@@ -545,9 +560,16 @@ function capture_widget(init){
 
         PEN = ie10_tablet_pointer()
 
+        var canvas_init = {
+            canvas_id: canvas_id,
+            canvas_height: init.canvas_height,
+            canvas_width: init.canvas_width
+        }
+
+
         if (PEN) {
             console.log('Pointer Enabled Device')
-            canvas = new smart_paint_widget(canvas_id)
+            canvas = new smart_paint_widget(canvas_init)
 
             c = document.getElementById(canvas_dom_id);
             c.addEventListener("MSPointerUp", on_mouseup, false);
@@ -559,7 +581,7 @@ function capture_widget(init){
         }
         else {
             console.log('Pointer Disabled Device')
-            canvas = new paint_widget(canvas_id)
+            canvas = new paint_widget(canvas_init)
             $(canvas_id).mousedown(on_mousedown)
             $(canvas_id).mousemove(on_mousemove)
             $(window).mouseup(on_mouseup)
