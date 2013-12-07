@@ -49,8 +49,8 @@ function paint_widget(init){
     var canvas_id = init.canvas_id
 
 
-    var canvas_width = typeof(init.canvas_width)== 'undefined'? '100' : init.canvas_width
-    var canvas_height = typeof(init.canvas_height)== 'undefined'? '100' : init.canvas_height
+//    var canvas_width = typeof(init.canvas_width)== 'undefined'? '100' : init.canvas_width
+//    var canvas_height = typeof(init.canvas_height)== 'undefined'? '100' : init.canvas_height
 
     var default_line_color = '#333'
     var default_line_width = 2
@@ -175,8 +175,8 @@ function paint_widget(init){
 //        $(canvas_id)[0].width = canvas_width
 //        $(canvas_id)[0].height = canvas_height
 
-        $(canvas_id).attr('width', canvas_width)
-        $(canvas_id).attr('height', canvas_height)
+//        $(canvas_id).attr('width', canvas_width)
+//        $(canvas_id).attr('height', canvas_height)
     }
 
     this.get_ctx = get_ctx;
@@ -188,6 +188,14 @@ function paint_widget(init){
 
         ctx.setTransform(current_transform.m11, current_transform.m12, current_transform.m21, current_transform.m22, current_transform.dx, current_transform.dy)
     }
+
+	this.get_image_data_rgba = function(){
+        var ctx = get_ctx();
+        var width = $(canvas_id).width()
+        var height = $(canvas_id).height()
+
+        return ctx.getImageData(0,0,width,height);		
+	}
 
     this.get_current_transform = function(){
         return current_transform;
@@ -245,6 +253,7 @@ function smart_paint_widget(init){
     this.get_ctx = canvas.get_ctx;
     this.transform = canvas.transform;
     this.get_current_transform = canvas.get_current_transform;
+    this.get_image_data_rgba = canvas.get_image_data_rgba;
 }
 
 
@@ -254,11 +263,13 @@ function smart_paint_widget(init){
 
 function capture_widget(init){
     var self= this;
-    var canvas_dom_id = init.canvas_id
+    self.canvas_dom_id = init.canvas_id
 
-    var canvas_id = '#' + canvas_dom_id
-    //var canvas // drawing widget
+    self.canvas_id = '#' + self.canvas_dom_id
 
+
+    self.gesture_support = (init.gesture_support||false);
+    self.GestureWidget = {}; // Initialized externally if gesture sypport
 
     var recording_start_time;
     var recording_stop_time;
@@ -393,8 +404,19 @@ function capture_widget(init){
         if (lmb_down) {
 
             if (active_visual_type != VisualTypes.eraser) {
-                console.log('push')
-                VISUALS.push(current_visual)
+
+                if(self.gesture_support){
+                    var stroke = {
+                        vertices: current_visual.vertices
+                    }
+
+                    var is_g = self.GestureWidget.is_stroke_gesture(stroke);
+                    console.log("is g", is_g);
+
+                }
+                else{
+                    VISUALS.push(current_visual)
+                }
             }
         }
 
@@ -494,6 +516,17 @@ function capture_widget(init){
     }
 
 
+    self.draw_stroke =function(stroke){
+        for(var j=1; j<stroke.vertices.length; j++){
+            var from = stroke.vertices[j-1]
+            var to = stroke.vertices[j]
+            var line = {
+                from: from,
+                to: to
+            }
+            self.canvas.draw_line(line)
+        }
+    }
 
     function draw_visuals(visuals){
         for (var i=0; i<visuals.length; i++){
@@ -510,15 +543,7 @@ function capture_widget(init){
                 }
             }
             else if(visual.type == VisualTypes.stroke){
-                for(var j=1; j<visual.vertices.length; j++){
-                    var from = visual.vertices[j-1]
-                    var to = visual.vertices[j]
-                    var line = {
-                        from: from,
-                        to: to
-                    }
-                    self.canvas.draw_line(line)
-                }
+                self.draw_stroke({vertices: visual.vertices})
             }
             else {
                 console.log('unknown visual type', visual.type)
@@ -526,37 +551,19 @@ function capture_widget(init){
         }
     }
 
+    function bind_handlers(){
+        if (PEN) {
+            var c = document.getElementById(self.canvas_dom_id);
+            c.addEventListener("MSPointerUp", on_mouseup, false);
+            c.addEventListener("MSPointerMove", on_mousemove, false);
+            c.addEventListener("MSPointerDown", on_mousedown, false);
 
-
-
-
-
-    // Returns true if this Internet Explorer 10 or greater running on a device
-    // with msPointer events enabled (like the surface pro)
-    function ie10_tablet_pointer() {
-        var ie10 = /MSIE (\d+)/.exec(navigator.userAgent)
-
-        if (ie10 != null) {
-
-            version = parseInt(ie10[1])
-            if (version >= 10) {
-                ie10 = true
-            }
-            else {
-                ie10 = false
-            }
         }
         else {
-            ie10 = false
-        }
 
-        var pointer = navigator.msPointerEnabled ? true : false
-
-        if (ie10 && pointer) {
-            return true
-        }
-        else {
-            return false
+            $(self.canvas_id).mousedown(on_mousedown)
+            $(self.canvas_id).mousemove(on_mousemove)
+            $(window).mouseup(on_mouseup)
         }
     }
 
@@ -567,31 +574,23 @@ function capture_widget(init){
         PEN = ie10_tablet_pointer()
 
         var canvas_init = {
-            canvas_id: canvas_id,
-            canvas_height: init.canvas_height,
-            canvas_width: init.canvas_width
+            canvas_id: self.canvas_id
         }
 
-
-        if (PEN) {
+        if(PEN){
             console.log('Pointer Enabled Device')
             self.canvas = new smart_paint_widget(canvas_init)
-
-            c = document.getElementById(canvas_dom_id);
-            c.addEventListener("MSPointerUp", on_mouseup, false);
-            c.addEventListener("MSPointerMove", on_mousemove, false);
-            c.addEventListener("MSPointerDown", on_mousedown, false);
-
-
-
         }
-        else {
+        else{
             console.log('Pointer Disabled Device')
             self.canvas = new paint_widget(canvas_init)
-            $(canvas_id).mousedown(on_mousedown)
-            $(canvas_id).mousemove(on_mousemove)
-            $(window).mouseup(on_mouseup)
         }
+
+
+
+        bind_handlers();
+
+
 
 
         //$(window).resize(resize_canvas)
@@ -664,6 +663,13 @@ function capture_widget(init){
         is_recording = false;
         recording_stop_time = time();
     }
+
+    self.get_image_data_rgba = self.canvas.get_image_data_rgba;
+
+    self.toDataURL =function(){
+         var c = document.getElementById(self.canvas_dom_id)
+        return c.toDataURL()
+    }	
 
 }
 
