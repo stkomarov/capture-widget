@@ -410,8 +410,10 @@ function capture_widget(init){
                         vertices: current_visual.vertices
                     }
 
-                    var is_g = self.GestureWidget.is_stroke_gesture(stroke);
-                    console.log("is g", is_g);
+                    var classification = self.GestureWidget.is_stroke_gesture(stroke);
+                    console.log(classification)
+                    ApplicationVM.update_popdown(classification)
+
 
                 }
                 else{
