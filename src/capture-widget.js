@@ -305,7 +305,7 @@ function capture_widget(init){
     var PEN = false // pointer enabled device
 
 
-    var VISUALS = []
+    self.visuals = []
     var current_visual;
 
     var TRANSFORMS = []
@@ -411,13 +411,13 @@ function capture_widget(init){
                     }
 
                     var classification = self.GestureWidget.is_stroke_gesture(stroke);
-                    console.log(classification)
+
                     ApplicationVM.update_popdown(classification)
 
 
                 }
                 else{
-                    VISUALS.push(current_visual)
+                    self.visuals.push(current_visual)
                 }
             }
         }
@@ -432,23 +432,23 @@ function capture_widget(init){
     function on_erase_move(last_point, cur_point) {
 
         var at_least_one_intersection = false;
-        for (var i = 0; i < VISUALS.length; i++) {
+        for (var i = 0; i < self.visuals.length; i++) {
 
-            for (var j = 0; j < VISUALS[i].vertices.length - 1; j++) {
+            for (var j = 0; j < self.visuals[i].vertices.length - 1; j++) {
                 var segment_a = {
                     start: last_point,
                     end: cur_point
                 }
                 var segment_b = {
-                    start: VISUALS[i].vertices[j],
-                    end: VISUALS[i].vertices[j + 1]
+                    start: self.visuals[i].vertices[j],
+                    end: self.visuals[i].vertices[j + 1]
                 }
                 if (do_line_segments_intersect(segment_a, segment_b)) {
 
 
 
-                    VISUALS[i].doesItGetDeleted = true;
-                    VISUALS[i].tDeletion = time();
+                    self.visuals[i].doesItGetDeleted = true;
+                    self.visuals[i].tDeletion = time();
                     at_least_one_intersection = true;
                 }
             }
@@ -456,7 +456,7 @@ function capture_widget(init){
 
         if(at_least_one_intersection){
             self.canvas.clear()
-            draw_visuals(VISUALS)
+            draw_visuals(self.visuals)
         }
 
     }
@@ -497,7 +497,7 @@ function capture_widget(init){
         self.canvas.clear();
         self.canvas.transform(mat)
         //ctx.translate(dx,dy);
-        draw_visuals(VISUALS)
+        draw_visuals(self.visuals)
         //ctx.restore();
 
         var transform = self.canvas.get_current_transform()
@@ -518,7 +518,9 @@ function capture_widget(init){
     }
 
 
-    self.draw_stroke =function(stroke){
+    self.draw_stroke = function(stroke, preserve_time){
+
+        var preserve_time = (preserve_time || false);
         for(var j=1; j<stroke.vertices.length; j++){
             var from = stroke.vertices[j-1]
             var to = stroke.vertices[j]
@@ -528,6 +530,38 @@ function capture_widget(init){
             }
             self.canvas.draw_line(line)
         }
+        var cur_time = time();
+
+        var vertices = JSON.parse(JSON.stringify(stroke.vertices))
+
+        if(! preserve_time){
+            for (var i=0; i<vertices.length; i++){
+                vertices[i].t = cur_time;
+            }
+        }
+
+
+        var visual = empty_visual();
+        visual.type = VisualTypes.stroke;
+        visual.vertices = vertices
+        console.log('drawing stroke')
+        self.visuals.push(visual);
+    }
+
+    self.get_last_stroke =function(){
+
+        if(self.visuals.length < 1){
+            console.log('no stroke to extract')
+            return undefined;
+        }
+
+        var last_visual = self.visuals[self.visuals.length-1]
+        if(last_visual.type != VisualTypes.stroke){
+            console.log('cannot extract visual type', last_visual.type)
+            return undefined;
+        }
+
+        return {vertices: last_visual.vertices}
     }
 
     function draw_visuals(visuals){
@@ -542,6 +576,7 @@ function capture_widget(init){
                 for(var j=0; j<visual.vertices.length; j++){
                     var vertex = visual.vertices[j]
                     self.canvas.draw_point(vertex)
+                    //TODO retime
                 }
             }
             else if(visual.type == VisualTypes.stroke){
@@ -638,15 +673,15 @@ function capture_widget(init){
     }
 
     self.draw_all=function(){
-        draw_visuals(VISUALS)
+        draw_visuals(self.visuals)
     }
 
     self.undo=function(){
 
-        if(VISUALS.length > 0){
-            VISUALS.pop()
+        if(self.visuals.length > 0){
+            self.visuals.pop()
             self.canvas.clear()
-            draw_visuals(VISUALS)
+            draw_visuals(self.visuals)
         }
 
     }
