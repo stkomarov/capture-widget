@@ -544,7 +544,6 @@ function capture_widget(init){
         var visual = empty_visual();
         visual.type = VisualTypes.stroke;
         visual.vertices = vertices
-        console.log('drawing stroke')
         self.visuals.push(visual);
     }
 
