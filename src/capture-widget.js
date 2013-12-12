@@ -405,15 +405,31 @@ function capture_widget(init){
 
             if (active_visual_type != VisualTypes.eraser) {
 
+                //TODO rmeove
+                if(ApplicationVM.is_touch_available){
+                    current_visual.finger_count = ApplicationVM.last_number_of_fingers_down();
+                }
+
                 if(self.gesture_support){
                     var stroke = {
-                        vertices: current_visual.vertices
+                        vertices: current_visual.vertices,
+                        finger_count: current_visual.finger_count //TODO not always necessary
                     }
 
                     var classification = self.GestureWidget.is_stroke_gesture(stroke);
 
-                    ApplicationVM.update_popdown(classification)
+                    if(classification.is_gesture){
+                        console.log('is gesture')
+                        self.clear()
+                        draw_visuals(self.visuals)
 
+                        if(classification.action == 'Erase'){
+                            on_demand_erase(stroke);
+                        }
+                    }
+                    else{
+                        self.visuals.push(current_visual)
+                    }
 
                 }
                 else{
@@ -459,6 +475,18 @@ function capture_widget(init){
             draw_visuals(self.visuals)
         }
 
+    }
+
+    function on_demand_erase(stroke){
+
+        console.log('on demand erase')
+
+        for (var i=1; i<stroke.vertices.length; i++){
+            var point_a = stroke.vertices[i-1]
+            var point_b = stroke.vertices[i]
+
+            on_erase_move(point_a, point_b)
+        }
     }
 
     function on_pan_start(event){
@@ -517,10 +545,35 @@ function capture_widget(init){
         return on_pan_move(event);
     }
 
-
-    self.draw_stroke = function(stroke, preserve_time){
-
+    self.save_draw_stroke = function(stroke, preserve_time){
         var preserve_time = (preserve_time || false);
+
+        self.draw_stroke(stroke);
+
+        var cur_time = time();
+        var vertices = JSON.parse(JSON.stringify(stroke.vertices))
+
+        if(! preserve_time){
+            for (var i=0; i<vertices.length; i++){
+                vertices[i].t = cur_time;
+            }
+        }
+
+        var visual = empty_visual();
+        visual.type = VisualTypes.stroke;
+        visual.vertices = vertices;
+
+        //TODO remove tainted
+        if(ApplicationVM.is_touch_available){
+           visual.finger_count = stroke.finger_count;
+        }
+
+        self.visuals.push(visual);
+    }
+
+    self.draw_stroke = function(stroke){
+
+
         for(var j=1; j<stroke.vertices.length; j++){
             var from = stroke.vertices[j-1]
             var to = stroke.vertices[j]
@@ -530,21 +583,8 @@ function capture_widget(init){
             }
             self.canvas.draw_line(line)
         }
-        var cur_time = time();
-
-        var vertices = JSON.parse(JSON.stringify(stroke.vertices))
-
-        if(! preserve_time){
-            for (var i=0; i<vertices.length; i++){
-                vertices[i].t = cur_time;
-            }
-        }
 
 
-        var visual = empty_visual();
-        visual.type = VisualTypes.stroke;
-        visual.vertices = vertices
-        self.visuals.push(visual);
     }
 
     self.get_last_stroke =function(){
@@ -560,7 +600,15 @@ function capture_widget(init){
             return undefined;
         }
 
-        return {vertices: last_visual.vertices}
+
+        var stroke =  {vertices: last_visual.vertices}
+
+        //TODO tainted
+        if(ApplicationVM.is_touch_available){
+            stroke.finger_count = last_visual.finger_count;
+        }
+
+        return stroke;
     }
 
     function draw_visuals(visuals){
