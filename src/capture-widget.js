@@ -150,10 +150,12 @@ function paint_widget(init){
         ctx.moveTo(line.from.x, line.from.y);
         ctx.lineTo(line.to.x, line.to.y);
 
-        ctx.strokeStyle = (line.color == undefined) ? default_line_color : line.color
+        ctx.strokeStyle = (typeof line.color !== 'undefined') ? line.color: default_line_color
         ctx.lineWidth = (typeof line.width !== 'undefined') ? line.width: default_line_width
 
 //         console.log('line width: ',ctx.lineWidth )
+//         console.log('line style: ',ctx.strokeStyle )
+
         ctx.lineCap = 'round'
 
         ctx.stroke();
@@ -248,21 +250,28 @@ function smart_paint_widget(init){
 
         avg_pressure = 0.5 * (line.from.pressure + line.to.pressure)
 
-        if (pressure_color) {
-            alpha = (1 - 0.5) + 0.5 * avg_pressure
-            line.color = 'rgba(32,32,32,' + alpha + ')' // todo use defaults
-        }
-        else {
-            line.color = 'rgba(64,64,64,1)'  // todo use defaults
+        if(typeof(line.color) === 'undefined'){
+            if (pressure_color) {
+                alpha = (1 - 0.5) + 0.5 * avg_pressure
+                line.color = 'rgba(32,32,32,' + alpha + ')' // todo use defaults
+            }
+            else {
+                line.color = 'rgba(64,64,64,1)'  // todo use defaults
+            }
         }
 
-        if (pressure_width) {
-            line.width = base_line_width + Math.round(max_extra_line_width * avg_pressure) // todo use defaults
 
+        if(typeof (line.width) === 'undefined'){
+            if (pressure_width) {
+                line.width = base_line_width + Math.round(max_extra_line_width * avg_pressure) // todo use defaults
+
+            }
+            else {
+                line.width = base_line_width // todo use defaults
+            }
         }
-        else {
-            line.width = base_line_width // todo use defaults
-        }
+
+
 
 //        console.log('li: ', line.width)
         canvas.draw_line(line)
@@ -556,7 +565,7 @@ function capture_widget(init){
 
      function on_highlight_move(last_point, cur_point) {
 
-         console.log('on highlight move')
+//         console.log('on highlight move')
         var ix = find_intersecting_visuals_to_line(last_point, cur_point)
 
         for (var i=0; i<ix.intersecting_visuals.length; i++){
@@ -567,7 +576,7 @@ function capture_widget(init){
 
             var stroke = {
                 vertices: ix.intersecting_visuals[i].vertices,
-                color: 'rgba(255,255,0,0.4)',
+                color: 'rgba(255,165,0,1)',
                 width: 6
             }
             self.draw_stroke(stroke);
