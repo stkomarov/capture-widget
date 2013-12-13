@@ -73,7 +73,8 @@ function paint_widget(init){
 //    var canvas_height = typeof(init.canvas_height)== 'undefined'? '100' : init.canvas_height
 
     var default_line_color = '#333'
-    var default_line_width = 2
+    var default_line_width = init.line_width;
+//    console.log('init line width:', init.line_width)
     var default_point_color = '#222'
 
     // a c e          m11  m21  dx         m11  m21  dx     x
@@ -150,7 +151,9 @@ function paint_widget(init){
         ctx.lineTo(line.to.x, line.to.y);
 
         ctx.strokeStyle = (line.color == undefined) ? default_line_color : line.color
-        ctx.lineWidth = (line.width == undefined) ? default_line_width : line.width
+        ctx.lineWidth = (typeof line.width !== 'undefined') ? line.width: default_line_width
+
+//         console.log('line width: ',ctx.lineWidth )
         ctx.lineCap = 'round'
 
         ctx.stroke();
@@ -229,7 +232,9 @@ function smart_paint_widget(init){
     var canvas = new paint_widget(init)
     var pressure_color = false  // Change color of strokes dep on pressure?
     var pressure_width = true  // Change width of strokes dep on pressure?
-    var max_extra_line_width = 4
+    var max_extra_line_width = init.line_width
+
+    var base_line_width = init.line_width;
 
     this.draw_line = function(line) {
 
@@ -252,12 +257,14 @@ function smart_paint_widget(init){
         }
 
         if (pressure_width) {
-            line.width = 1 + Math.round(max_extra_line_width * avg_pressure) // todo use defaults
+            line.width = base_line_width + Math.round(max_extra_line_width * avg_pressure) // todo use defaults
+
         }
         else {
-            line.width = 2 // todo use defaults
+            line.width = base_line_width // todo use defaults
         }
 
+//        console.log('li: ', line.width)
         canvas.draw_line(line)
     }
 
@@ -287,7 +294,9 @@ function capture_widget(init){
 
     self.canvas_id = '#' + self.canvas_dom_id
 
-
+    if (typeof init.smart_widget === 'undefined'){
+        init.smart_widget = true;
+    }
     self.gesture_support = (init.gesture_support||false);
     self.GestureWidget = {}; // Initialized externally if gesture sypport
 
@@ -458,10 +467,10 @@ function capture_widget(init){
                         else if(classification.action.substring(0, 'user'.length) === 'user'){
 
                             var strokes = GM.get_action_by_name(classification.action).strokes;
-                            console.log('StrokeS', strokes);
+//                            console.log('StrokeS', strokes);
 
                             var bb = bb_visual(current_visual);
-                            console.log('bb', bb);
+//                            console.log('bb', bb);
 
                             var strokes = JSON.parse(JSON.stringify(strokes));
 
@@ -767,10 +776,11 @@ function capture_widget(init){
         PEN = ie10_tablet_pointer()
 
         var canvas_init = {
-            canvas_id: self.canvas_id
+            canvas_id: self.canvas_id,
+            line_width: init.line_width
         }
 
-        if(PEN){
+        if(PEN && init.smart_widget){
             console.log('Pointer Enabled Device')
             self.canvas = new smart_paint_widget(canvas_init)
         }
