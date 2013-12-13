@@ -485,8 +485,8 @@ function capture_widget(init){
 
                             for(var i=0; i<strokes.length; i++){
                                 for (var j=0; j<strokes[i].vertices.length; j++){
-                                    strokes[i].vertices[j].x += bb.min_x;
-                                    strokes[i].vertices[j].y += bb.min_y;
+                                    strokes[i].vertices[j].x += (bb.min_x-50);
+                                    strokes[i].vertices[j].y += (bb.min_y-50);
                                 }
                             }
 
