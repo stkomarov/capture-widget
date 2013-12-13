@@ -7,6 +7,26 @@
 
 //TODO major refactor use self instead of this
 
+function bb_visual(visual){
+
+    var min_x = visual.vertices[0].x;
+    var min_y = visual.vertices[0].y;
+
+    for(var i=0; i<visual.vertices.length; i++){
+        if(visual.vertices[i].x < min_x){
+            min_x = visual.vertices[i].x
+        }
+
+        if(visual.vertices[i].y < min_y){
+            min_y = visual.vertices[i].y
+        }
+    }
+
+    return {
+        min_x: min_x,
+        min_y: min_y
+    }
+}
 
 function do_line_segments_intersect(segment_a, segment_b){
 
@@ -297,7 +317,8 @@ function capture_widget(init){
     var VisualTypes = {
         dots: 'dots',  // todo use ints to speed up?
         stroke: 'stroke',
-        eraser: 'eraser'
+        eraser: 'eraser',
+        highlight: 'highlight'
     }
     var active_visual_type = VisualTypes['stroke']
 
@@ -380,6 +401,9 @@ function capture_widget(init){
 
                 return on_erase_move(last_point,cur_point);
             }
+            else if(active_visual_type == VisualTypes.highlight){
+                return on_highlight_move(last_point,cur_point);
+            }
             else {
                 alert("unknown drawing mode")
             }
@@ -403,7 +427,9 @@ function capture_widget(init){
 
         if (lmb_down) {
 
-            if (active_visual_type != VisualTypes.eraser) {
+
+
+            if (active_visual_type == VisualTypes.stroke) {
 
                 //TODO rmeove
                 if(ApplicationVM.is_touch_available){
@@ -426,6 +452,36 @@ function capture_widget(init){
                         if(classification.action == 'Erase'){
                             on_demand_erase(stroke);
                         }
+                        else if(classification.action == 'Highlight'){
+                            on_demand_highlight(stroke);
+                        }
+                        else if(classification.action.substring(0, 'user'.length) === 'user'){
+
+                            var strokes = GM.get_action_by_name(classification.action).strokes;
+                            console.log('StrokeS', strokes);
+
+                            var bb = bb_visual(current_visual);
+                            console.log('bb', bb);
+
+                            var strokes = JSON.parse(JSON.stringify(strokes));
+
+                            for(var i=0; i<strokes.length; i++){
+                                for (var j=0; j<strokes[i].vertices.length; j++){
+                                    strokes[i].vertices[j].x += bb.min_x;
+                                    strokes[i].vertices[j].y += bb.min_y;
+                                }
+                            }
+
+
+                            for (var i=0; i<strokes.length; i++){
+                                self.save_draw_stroke(strokes[i], false);
+                            }
+
+
+                        }
+                        else{
+                            console.log('unknown gesture')
+                        }
                     }
                     else{
                         self.visuals.push(current_visual)
@@ -445,9 +501,9 @@ function capture_widget(init){
 
     }
 
-    function on_erase_move(last_point, cur_point) {
-
+    function find_intersecting_visuals_to_line(last_point, cur_point){
         var at_least_one_intersection = false;
+        var intersecting_visuals = []
         for (var i = 0; i < self.visuals.length; i++) {
 
             for (var j = 0; j < self.visuals[i].vertices.length - 1; j++) {
@@ -460,22 +516,57 @@ function capture_widget(init){
                     end: self.visuals[i].vertices[j + 1]
                 }
                 if (do_line_segments_intersect(segment_a, segment_b)) {
-
-
-
-                    self.visuals[i].doesItGetDeleted = true;
-                    self.visuals[i].tDeletion = time();
+                    intersecting_visuals.push(self.visuals[i])
                     at_least_one_intersection = true;
                 }
             }
         }
 
-        if(at_least_one_intersection){
+        return {
+            intersecting_visuals: intersecting_visuals,
+            at_least_one_intersection: at_least_one_intersection
+        }
+    }
+
+    function on_erase_move(last_point, cur_point) {
+
+        var ix = find_intersecting_visuals_to_line(last_point, cur_point)
+
+        for (var i=0; i<ix.intersecting_visuals.length; i++){
+
+            ix.intersecting_visuals[i].doesItGetDeleted = true;
+            ix.intersecting_visuals[i].tDeletion = time();
+        }
+
+        if(ix.at_least_one_intersection){
             self.canvas.clear()
             draw_visuals(self.visuals)
         }
 
     }
+
+     function on_highlight_move(last_point, cur_point) {
+
+         console.log('on highlight move')
+        var ix = find_intersecting_visuals_to_line(last_point, cur_point)
+
+        for (var i=0; i<ix.intersecting_visuals.length; i++){
+
+            if(ix.intersecting_visuals[i].doesItGetDeleted){
+                continue;
+            }
+
+            var stroke = {
+                vertices: ix.intersecting_visuals[i].vertices,
+                color: 'rgba(255,255,0,0.4)',
+                width: 6
+            }
+            self.draw_stroke(stroke);
+
+        }
+
+    }
+
 
     function on_demand_erase(stroke){
 
@@ -488,6 +579,18 @@ function capture_widget(init){
             on_erase_move(point_a, point_b)
         }
     }
+
+    function on_demand_highlight(stroke){
+        console.log('on demand erase')
+
+        for (var i=1; i<stroke.vertices.length; i++){
+            var point_a = stroke.vertices[i-1]
+            var point_b = stroke.vertices[i]
+
+            on_highlight_move(point_a, point_b)
+        }
+    }
+
 
     function on_pan_start(event){
         pan_last_point = {x: event.pageX, y:event.pageY};
@@ -573,13 +676,19 @@ function capture_widget(init){
 
     self.draw_stroke = function(stroke){
 
-
         for(var j=1; j<stroke.vertices.length; j++){
             var from = stroke.vertices[j-1]
             var to = stroke.vertices[j]
             var line = {
                 from: from,
                 to: to
+            }
+
+            if(typeof stroke.color !== 'undefined'){
+                line.color = stroke.color;
+            }
+            if(typeof stroke.width !== 'undefined'){
+                line.width = stroke.width;
             }
             self.canvas.draw_line(line)
         }
